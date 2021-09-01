@@ -312,11 +312,9 @@ func listnerForEventName(subscriber chan PubSub) PubSub {
 }
 
 func BenchmarkPubSubSyncTuneInBlock(b *testing.B) {
-	//radio = make(radios)
+	radio = &radios{Subs: make(map[string]*NodeList)}
 	eventName := "BenchmarkPubSubSyncTuneInBlock" + strconv.Itoa(time.Now().Nanosecond())
-	b.N = 100000
 	for i := 0; i < b.N; i++ {
-
 		go func() {
 			subscribed, err := Subscribe(eventName)
 			if err != nil {
@@ -334,7 +332,6 @@ func BenchmarkPubSubAsyncTuneInBlock(b *testing.B) {
 	wg := sync.WaitGroup{}
 	radio = &radios{Subs: make(map[string]*NodeList)}
 	eventName := "BenchmarkPubSubAsyncTuneInBlock" + strconv.Itoa(time.Now().Nanosecond())
-	b.N = 100000
 	for i := 0; i < b.N; i++ {
 		wg.Add(1)
 		subscribed, err := Subscribe(eventName)
@@ -372,7 +369,6 @@ func BenchmarkPubSubSync(b *testing.B) {
 }
 
 func BenchmarkPubSubAsync(b *testing.B) {
-	b.N = 500000
 	wg := sync.WaitGroup{}
 	radio = &radios{Subs: make(map[string]*NodeList)}
 	eventName := "BenchmarkPubSubAsync" + strconv.Itoa(time.Now().Nanosecond())
@@ -396,7 +392,6 @@ func BenchmarkPubSubAsync(b *testing.B) {
 }
 
 func BenchmarkPubSubSyncTrigger(b *testing.B) {
-	b.N = 100000
 	radio = &radios{Subs: make(map[string]*NodeList)}
 	eventName := "BenchmarkPubSubSyncTrigger" + strconv.Itoa(time.Now().Nanosecond())
 	subscribed, err := Subscribe(eventName)
@@ -417,7 +412,6 @@ func BenchmarkPubSubSyncTrigger(b *testing.B) {
 }
 
 func BenchmarkPubSubAsyncTrigger(b *testing.B) {
-	b.N = 100000
 	radio = &radios{Subs: make(map[string]*NodeList)}
 	eventName := "BenchmarkPubSubAsyncTrigger" + strconv.Itoa(time.Now().Nanosecond())
 	subscribed, err := Subscribe(eventName)
@@ -439,7 +433,6 @@ func BenchmarkPubSubAsyncTrigger(b *testing.B) {
 
 func BenchmarkPubSubSyncTuneInBlockOnce(b *testing.B) {
 	eventName := "BenchmarkPubSubSyncTuneInBlockOnce" + strconv.Itoa(time.Now().Nanosecond())
-	b.N = 100000
 	radio = &radios{Subs: make(map[string]*NodeList)}
 	for i := 0; i < b.N; i++ {
 		subscribed, err := Subscribe(eventName)
@@ -457,7 +450,6 @@ func BenchmarkPubSubSyncTuneInBlockOnce(b *testing.B) {
 func BenchmarkPubSubAsyncTuneInBlockOnce(b *testing.B) {
 	wg := sync.WaitGroup{}
 	eventName := "BenchmarkPubSubAsyncTuneInBlockOnce" + strconv.Itoa(time.Now().Nanosecond())
-	b.N = 100000
 	radio = &radios{Subs: make(map[string]*NodeList)}
 	for i := 0; i < b.N; i++ {
 		wg.Add(1)
