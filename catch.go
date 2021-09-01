@@ -50,7 +50,9 @@ func (event *Node) Drop() {
 	event.Parent.Size--
 	if event.Prev == nil {
 		event.Parent.Head = event.Next
-		event.Parent.Tail = event.Next
+		if event.Parent.Tail == event {
+			event.Parent.Tail = event.Next
+		}
 	} else {
 		event.Prev.Next = event.Next
 	}
