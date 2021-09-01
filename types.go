@@ -1,31 +1,44 @@
 package gnr
 
+import (
+	"sync"
+
+	"github.com/google/uuid"
+)
+
 type (
 	PubSub struct {
 		Key    string
 		Action int
 		Reply  chan Event
 	}
-	Channel  chan PubSub
-	ChanList []Channel
+
+	Channel struct {
+		Signal chan PubSub
+		Id     uuid.UUID
+	}
+
+	Node struct {
+		C      *Channel
+		Prev   *Node
+		Next   *Node
+		Parent *NodeList
+	}
+
+	NodeList struct {
+		Head *Node
+		Tail *Node
+		Size int
+	}
 
 	Event     interface{}
 	DataReply interface{}
 
-	SubStop   struct{}
-	radios    map[string]ChanList
-	removeMap map[Channel]int
+	SubStop struct{}
 
-	Found struct {
-		Length int
-		List   ChanList
-	}
-
-	syncRadios struct {
-		Action int
-		Key    string
-		Data   ChanList
-		Reply  chan DataReply
+	radios struct {
+		sync.Mutex
+		Subs map[string]*NodeList
 	}
 )
 
@@ -40,6 +53,9 @@ const (
 )
 
 var (
-	radio     = make(radios)
-	radioFlow = make(chan syncRadios, 1000)
+	radio = &radios{Subs: make(map[string]*NodeList)}
 )
+
+func NewNode() *Node {
+	return &Node{C: &Channel{Signal: make(chan PubSub, 1)}}
+}

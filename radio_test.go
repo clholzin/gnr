@@ -15,7 +15,7 @@ func TestPubSubSync(t *testing.T) {
 	}
 	go func() {
 		select {
-		case v := <-subscribed:
+		case v := <-subscribed.C.Signal:
 			testClose := SubStop{}
 			v.Reply <- testClose
 		}
@@ -33,7 +33,7 @@ func TestPubSubAsync(t *testing.T) {
 	}
 	go func() {
 		select {
-		case <-subscribed:
+		case <-subscribed.C.Signal:
 			wg.Done()
 		}
 	}()
@@ -114,7 +114,7 @@ func TestPubSubAsyncReply(t *testing.T) {
 	}
 	go func() {
 		select {
-		case v := <-subscribed:
+		case v := <-subscribed.C.Signal:
 			testClose := SubStop{}
 			v.Reply <- testClose
 			wg.Done()
@@ -171,7 +171,7 @@ func TestPubSubClose(t *testing.T) {
 	}
 	go func() {
 		select {
-		case v := <-subscribed:
+		case v := <-subscribed.C.Signal:
 			v.Reply <- SubStop{}
 		}
 	}()
@@ -190,10 +190,10 @@ func TestPubSubListenAndRemove(t *testing.T) {
 		t.Fail()
 		return
 	}
-	subscribedOne.Drop(eventName)
-	subscribedTwo.Drop(eventName)
+	subscribedOne.Drop()
+	subscribedTwo.Drop()
 	channels := Access(eventName)
-	if channels.Length > 0 {
+	if channels.Size > 0 {
 		t.Fail()
 	}
 }
@@ -208,7 +208,7 @@ func TestPubSubCloseAsync(t *testing.T) {
 	}
 	go func() {
 		select {
-		case v := <-subscribed:
+		case v := <-subscribed.C.Signal:
 			v.Reply <- SubStop{}
 			wg.Done()
 		}
@@ -228,7 +228,7 @@ func TestPubSubRestrictSync(t *testing.T) {
 		// Listen for event 10 times
 		length := 10
 		for i := 1; i <= length; i++ {
-			pubsub = listnerForEventName(subscriber)
+			pubsub = listnerForEventName(subscriber.C.Signal)
 			if i == length {
 				pubsub.Reply <- SubStop{}
 			} else {
@@ -253,7 +253,7 @@ func TestPubSubRestrictAsync(t *testing.T) {
 		var pubsub PubSub
 		// Listen for event 10 times
 		for i := 1; i <= 10; i++ {
-			pubsub = listnerForEventName(subscriber)
+			pubsub = listnerForEventName(subscriber.C.Signal)
 		}
 		pubsub.Reply <- SubStop{}
 	}()
@@ -286,18 +286,11 @@ func TestOnSubscriber(t *testing.T) {
 func TestOnSubscriberCloser(t *testing.T) {
 
 	event, _ := Subscribe("name")
-	//tester := make(chan int, 1)
-	event.On(func(p PubSub) {
-		// callback
-		//tester <- 1
-	})
+	event.On(func(p PubSub) {})
 
 	Trigger("name", "async")
-	//<-tester
-	if event.Drop("name") {
-		close(event) // close will initiate termination of the event breaking event.On loop
-	}
-
+	event.Drop()
+	close(event.C.Signal)   // close will initiate termination of the event breaking event.On loop
 	Trigger("name", "sync") //won't trigger event as it has been removed
 
 }
@@ -306,8 +299,8 @@ func TestSize(t *testing.T) {
 
 	_, _ = Subscribe("evName")
 
-	li := Size("evName")
-	if li.Length == 0 {
+	size := Size("evName")
+	if size == 0 {
 		t.Fail()
 	}
 
@@ -319,11 +312,9 @@ func listnerForEventName(subscriber chan PubSub) PubSub {
 }
 
 func BenchmarkPubSubSyncTuneInBlock(b *testing.B) {
-	//radio = make(radios)
+	radio = &radios{Subs: make(map[string]*NodeList)}
 	eventName := "BenchmarkPubSubSyncTuneInBlock" + strconv.Itoa(time.Now().Nanosecond())
-	b.N = 100000
 	for i := 0; i < b.N; i++ {
-
 		go func() {
 			subscribed, err := Subscribe(eventName)
 			if err != nil {
@@ -339,9 +330,8 @@ func BenchmarkPubSubSyncTuneInBlock(b *testing.B) {
 
 func BenchmarkPubSubAsyncTuneInBlock(b *testing.B) {
 	wg := sync.WaitGroup{}
-	radio = make(radios)
+	radio = &radios{Subs: make(map[string]*NodeList)}
 	eventName := "BenchmarkPubSubAsyncTuneInBlock" + strconv.Itoa(time.Now().Nanosecond())
-	b.N = 100000
 	for i := 0; i < b.N; i++ {
 		wg.Add(1)
 		subscribed, err := Subscribe(eventName)
@@ -359,7 +349,7 @@ func BenchmarkPubSubAsyncTuneInBlock(b *testing.B) {
 }
 
 func BenchmarkPubSubSync(b *testing.B) {
-	radio = make(radios)
+	radio = &radios{Subs: make(map[string]*NodeList)}
 	eventName := "BenchmarkPubSubSync_" + strconv.Itoa(time.Now().Nanosecond())
 	for i := 0; i < b.N; i++ {
 		subscribed, err := Subscribe(eventName)
@@ -367,9 +357,9 @@ func BenchmarkPubSubSync(b *testing.B) {
 			b.Fail()
 			return
 		}
-		go func(event Channel) {
+		go func(event *Node) {
 			select {
-			case v := <-event:
+			case v := <-event.C.Signal:
 				v.Reply <- PubSub{}
 			}
 		}(subscribed)
@@ -379,9 +369,8 @@ func BenchmarkPubSubSync(b *testing.B) {
 }
 
 func BenchmarkPubSubAsync(b *testing.B) {
-	b.N = 500000
 	wg := sync.WaitGroup{}
-	radio = make(radios)
+	radio = &radios{Subs: make(map[string]*NodeList)}
 	eventName := "BenchmarkPubSubAsync" + strconv.Itoa(time.Now().Nanosecond())
 	for i := 0; i < b.N; i++ {
 		wg.Add(1)
@@ -390,9 +379,9 @@ func BenchmarkPubSubAsync(b *testing.B) {
 			b.Fail()
 			return
 		}
-		go func(event Channel) {
+		go func(event *Node) {
 			select {
-			case v := <-event:
+			case v := <-event.C.Signal:
 				v.Reply <- PubSub{}
 				wg.Done()
 			}
@@ -403,8 +392,7 @@ func BenchmarkPubSubAsync(b *testing.B) {
 }
 
 func BenchmarkPubSubSyncTrigger(b *testing.B) {
-	b.N = 100000
-	radio = make(radios)
+	radio = &radios{Subs: make(map[string]*NodeList)}
 	eventName := "BenchmarkPubSubSyncTrigger" + strconv.Itoa(time.Now().Nanosecond())
 	subscribed, err := Subscribe(eventName)
 	if err != nil {
@@ -424,8 +412,7 @@ func BenchmarkPubSubSyncTrigger(b *testing.B) {
 }
 
 func BenchmarkPubSubAsyncTrigger(b *testing.B) {
-	b.N = 100000
-	radio = make(radios)
+	radio = &radios{Subs: make(map[string]*NodeList)}
 	eventName := "BenchmarkPubSubAsyncTrigger" + strconv.Itoa(time.Now().Nanosecond())
 	subscribed, err := Subscribe(eventName)
 	if err != nil {
@@ -446,8 +433,7 @@ func BenchmarkPubSubAsyncTrigger(b *testing.B) {
 
 func BenchmarkPubSubSyncTuneInBlockOnce(b *testing.B) {
 	eventName := "BenchmarkPubSubSyncTuneInBlockOnce" + strconv.Itoa(time.Now().Nanosecond())
-	b.N = 100000
-	radio = make(radios)
+	radio = &radios{Subs: make(map[string]*NodeList)}
 	for i := 0; i < b.N; i++ {
 		subscribed, err := Subscribe(eventName)
 		if err != nil {
@@ -464,8 +450,7 @@ func BenchmarkPubSubSyncTuneInBlockOnce(b *testing.B) {
 func BenchmarkPubSubAsyncTuneInBlockOnce(b *testing.B) {
 	wg := sync.WaitGroup{}
 	eventName := "BenchmarkPubSubAsyncTuneInBlockOnce" + strconv.Itoa(time.Now().Nanosecond())
-	b.N = 100000
-	radio = make(radios)
+	radio = &radios{Subs: make(map[string]*NodeList)}
 	for i := 0; i < b.N; i++ {
 		wg.Add(1)
 		subscribed, err := Subscribe(eventName)
