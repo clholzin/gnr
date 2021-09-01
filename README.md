@@ -80,7 +80,7 @@ Sync will cause Trigger to wait until all channels have been served and replied 
 if they are sending a response.
 
 ```go
-import "path/to/gnr"
+import "github.com/clholzin/gnr"
 
 gnr.Trigger("EventName","sync")
 ```
@@ -88,7 +88,7 @@ gnr.Trigger("EventName","sync")
 Async will not wait for confirmation and will continue down the call stack.
 
 ```go
-import "path/to/gnr"
+import "github.com/clholzin/gnr"
 
 gnr.Trigger("EventName","async")
 ```
@@ -97,7 +97,7 @@ gnr.Trigger("EventName","async")
 Basic Application Usage:
 
 ```go
-import "path/to/gnr"
+import "github.com/clholzin/gnr"
 
 // Infinitly listen for event
 
@@ -111,7 +111,7 @@ if err != nil {
 go func(){
     for {
          select {
-         case e := <- event:
+         case e := <- event.C.Signal:
             // Optional Reply
             // This is used to help synchronize and also to remove subscribers
             e.Reply <- gnr.PubSub{}
@@ -199,7 +199,7 @@ gnr.Trigger("ListenForNoEvent")
 Listen for only 10 consecutive events
 
 ```go
-import "path/to/gnr"
+import "github.com/clholzin/gnr"
 
 func listnerForEventName (subscriber chan PubSub) PubSub{
 	pubSub :=<- subscriber
@@ -246,7 +246,7 @@ if err != nil {
 }
 go func(){
     select {
-    case v := <- subscribed:
+    case v := <- subscribed.C.Signal:
         log.Println("Got it, received trigger")
         closeMe := SubStop{}
         v.Reply <- closeMe
